@@ -342,13 +342,13 @@
     <section class="view" id="view-settings">
       <div class="section-label">DATA</div>
       <div class="settings-block">
-        <h4>Everything stays on this device</h4>
-        <p>This console has no server. Tasks, events and notes are saved in this browser's local storage only — nothing syncs automatically between your phone and computer. Use export / import below to move a backup between devices.</p>
+        <h4>Synced via Supabase</h4>
+        <p>Changes save to this device instantly and push to the cloud a moment later. Reopening the console on another device pulls the latest cloud copy. If you're offline, you keep working from the local copy and it catches up once you're back online.</p>
         <button class="btn btn-ghost" id="exportBtn">Export backup (.json)</button>
       </div>
       <div class="settings-block">
         <h4>Restore a backup</h4>
-        <p>Import a previously exported file. This replaces everything currently in the console.</p>
+        <p>Import a previously exported file. This replaces everything currently in the console, on this device and in the cloud.</p>
         <label class="btn btn-ghost" for="importFile" style="display:block; text-align:center;">Import backup</label>
         <input type="file" id="importFile" accept="application/json">
       </div>
@@ -358,7 +358,7 @@
       </div>
       <div class="settings-block">
         <h4>Reset</h4>
-        <p>Wipes all projects, tasks and events on this device. Can't be undone.</p>
+        <p>Wipes all projects, tasks and events everywhere — this device and the cloud. Can't be undone.</p>
         <button class="btn btn-danger" id="resetBtn">Erase everything</button>
       </div>
     </section>
@@ -433,9 +433,67 @@
   </div>
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script>
 (function(){
   'use strict';
+
+  /* ---------------- Cloud sync (Supabase) ---------------- */
+  var SUPABASE_URL = 'https://izicucqhymamxojldamv.supabase.co';
+  var SUPABASE_ANON_KEY = 'sb_publishable_wI4vI39JRbuL_xslFuumfQ_nbVJ9l-N';
+  var sb = (window.supabase && SUPABASE_URL.indexOf('YOUR-') === -1)
+    ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
+    : null;
+
+  function taskToRow(t){ return { id:t.id, project_id:t.projectId, title:t.title, done:t.done, date:t.date||'', time:t.time||'' }; }
+  function rowToTask(r){ return { id:r.id, projectId:r.project_id, title:r.title, done:r.done, date:r.date||'', time:r.time||'' }; }
+  function eventToRow(e){ return { id:e.id, project_id:e.projectId, title:e.title, date:e.date||'', time:e.time||'' }; }
+  function rowToEvent(r){ return { id:r.id, projectId:r.project_id, title:r.title, date:r.date||'', time:r.time||'' }; }
+
+  var pushTimer = null;
+  function scheduleCloudPush(){
+    if(!sb) return;
+    if(pushTimer) clearTimeout(pushTimer);
+    pushTimer = setTimeout(pushAllToCloud, 700);
+  }
+  function pushAllToCloud(){
+    if(!sb) return Promise.resolve();
+    return Promise.all([
+      sb.from('projects').upsert(state.projects),
+      sb.from('tasks').upsert(state.tasks.map(taskToRow)),
+      sb.from('events').upsert(state.events.map(eventToRow))
+    ]).catch(function(e){ console.warn('cloud push failed', e); });
+  }
+  function wipeCloud(){
+    if(!sb) return Promise.resolve();
+    return Promise.all([
+      sb.from('tasks').delete().neq('id','__none__'),
+      sb.from('events').delete().neq('id','__none__'),
+      sb.from('projects').delete().neq('id','__none__')
+    ]).catch(function(e){ console.warn('cloud wipe failed', e); });
+  }
+  function syncFromCloud(){
+    if(!sb) return;
+    Promise.all([
+      sb.from('projects').select('*'),
+      sb.from('tasks').select('*'),
+      sb.from('events').select('*')
+    ]).then(function(results){
+      var pr=results[0], tk=results[1], ev=results[2];
+      if(pr.error||tk.error||ev.error){ throw (pr.error||tk.error||ev.error); }
+      if(pr.data && pr.data.length){
+        state = {
+          projects: pr.data,
+          tasks: (tk.data||[]).map(rowToTask),
+          events: (ev.data||[]).map(rowToEvent)
+        };
+        try{ localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }catch(e){}
+        renderAll();
+      } else {
+        pushAllToCloud();
+      }
+    }).catch(function(e){ console.warn('cloud sync failed, staying on local copy', e); });
+  }
 
   /* ---------------- State ---------------- */
   var STORAGE_KEY = 'nyxus_console_v1';
@@ -478,6 +536,7 @@
   }
   function save(){
     try{ localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }catch(e){}
+    scheduleCloudPush();
   }
 
   function fmtDate(d){
@@ -797,16 +856,21 @@
       try{
         var parsed = JSON.parse(reader.result);
         if(parsed && parsed.projects && parsed.tasks && parsed.events){
-          state = parsed; save(); renderAll();
+          state = parsed;
+          try{ localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }catch(e){}
+          renderAll();
+          wipeCloud().then(pushAllToCloud);
         }
       }catch(e){ alert('That file could not be read.'); }
     };
     reader.readAsText(file);
   }
   function resetAll(){
-    if(!confirm('Erase everything on this device? This cannot be undone.')) return;
+    if(!confirm('Erase everything on this device and in the cloud? This cannot be undone.')) return;
     state = JSON.parse(JSON.stringify(defaultState));
-    save(); renderAll();
+    try{ localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }catch(e){}
+    renderAll();
+    wipeCloud().then(pushAllToCloud);
   }
 
   /* ---------------- Wire up ---------------- */
@@ -844,6 +908,7 @@
   }
 
   renderAll();
+  syncFromCloud();
 })();
 </script>
 </body>
