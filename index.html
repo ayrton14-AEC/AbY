@@ -1,0 +1,850 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1">
+<title>Console — Ayrton</title>
+<meta name="theme-color" content="#0B0D12">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Console">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="icon" href="icon-192.png">
+<link rel="manifest" href="manifest.json">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,450;9..144,560;9..144,650&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0B0D12;
+    --bg-panel:#14171F;
+    --bg-elevated:#1B1F2A;
+    --border:#262B38;
+    --border-soft:#1D212C;
+    --text:#EDEBE6;
+    --text-dim:#9498A8;
+    --text-faint:#5B5F6E;
+    --gold:#C9A44C;
+    --gold-dim:#8A7038;
+    --indigo:#6C6FF0;
+    --indigo-dim:#3C3E8A;
+    --red:#E0654B;
+    --green:#6FA87A;
+    --radius-s:6px;
+    --radius-m:12px;
+    --radius-l:20px;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  html,body{height:100%;}
+  body{
+    margin:0;
+    background:var(--bg);
+    color:var(--text);
+    font-family:'IBM Plex Sans', -apple-system, sans-serif;
+    font-size:15px;
+    overscroll-behavior:none;
+    -webkit-font-smoothing:antialiased;
+  }
+  #app{
+    max-width:520px;
+    margin:0 auto;
+    min-height:100vh;
+    min-height:100dvh;
+    display:flex;
+    flex-direction:column;
+    position:relative;
+    padding-bottom:calc(78px + env(safe-area-inset-bottom));
+  }
+  .mono{ font-family:'IBM Plex Mono', monospace; }
+  .display{ font-family:'Fraunces', serif; }
+
+  /* ---------- Header ---------- */
+  header{
+    padding:22px 20px 16px;
+    display:flex;
+    align-items:flex-end;
+    justify-content:space-between;
+    border-bottom:1px solid var(--border-soft);
+    background:
+      radial-gradient(ellipse 400px 180px at 85% -20%, rgba(108,111,240,0.18), transparent 70%),
+      var(--bg);
+  }
+  .date-block{ display:flex; align-items:baseline; gap:12px; }
+  .date-num{
+    font-family:'Fraunces', serif;
+    font-weight:560;
+    font-size:52px;
+    line-height:1;
+    color:var(--text);
+    letter-spacing:-0.02em;
+    animation:riseIn .5s cubic-bezier(.2,.8,.2,1);
+  }
+  @keyframes riseIn{ from{ opacity:0; transform:translateY(6px);} to{opacity:1; transform:translateY(0);} }
+  .date-meta{ display:flex; flex-direction:column; gap:2px; }
+  .date-weekday{ font-size:15px; color:var(--text); font-weight:500; }
+  .date-sub{ font-size:12.5px; color:var(--text-dim); font-family:'IBM Plex Mono', monospace; }
+  .greet{ font-size:12px; color:var(--gold); text-transform:none; margin-bottom:4px; font-family:'IBM Plex Mono', monospace; letter-spacing:0.02em; }
+
+  /* ---------- Chips ---------- */
+  .chip-row{
+    display:flex;
+    gap:8px;
+    padding:14px 20px;
+    overflow-x:auto;
+    scrollbar-width:none;
+    border-bottom:1px solid var(--border-soft);
+  }
+  .chip-row::-webkit-scrollbar{ display:none; }
+  .chip{
+    flex:0 0 auto;
+    padding:7px 13px;
+    border-radius:999px;
+    border:1px solid var(--border);
+    color:var(--text-dim);
+    font-size:13px;
+    font-weight:500;
+    white-space:nowrap;
+    cursor:pointer;
+    background:var(--bg-panel);
+    display:flex; align-items:center; gap:6px;
+    transition:border-color .15s, color .15s;
+  }
+  .chip .dot{ width:6px; height:6px; border-radius:50%; }
+  .chip.active{ color:var(--text); border-color:var(--chip-color, var(--gold)); background:var(--bg-elevated); }
+  .chip.add{ color:var(--text-faint); border-style:dashed; }
+
+  /* ---------- Sections ---------- */
+  main{ flex:1; padding:4px 20px 30px; }
+  .view{ display:none; animation:fadeIn .25s ease; }
+  .view.active{ display:block; }
+  @keyframes fadeIn{ from{opacity:0;} to{opacity:1;} }
+
+  .section-label{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:11.5px;
+    color:var(--text-faint);
+    letter-spacing:0.06em;
+    margin:26px 0 10px;
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+  }
+  .section-label a{ color:var(--text-dim); font-family:'IBM Plex Sans',sans-serif; cursor:pointer; }
+
+  .item-row{
+    display:flex;
+    align-items:center;
+    gap:12px;
+    padding:12px 0;
+    border-bottom:1px solid var(--border-soft);
+  }
+  .item-row:last-child{ border-bottom:none; }
+  .check{
+    width:19px; height:19px; border-radius:50%;
+    border:1.5px solid var(--text-faint);
+    flex:0 0 auto;
+    display:flex; align-items:center; justify-content:center;
+    cursor:pointer;
+  }
+  .check.event{ border-radius:4px; border-color:var(--indigo); background:rgba(108,111,240,0.15); }
+  .check.done{ background:var(--green); border-color:var(--green); }
+  .check svg{ width:11px; height:11px; opacity:0; }
+  .check.done svg{ opacity:1; }
+  .item-body{ flex:1; min-width:0; }
+  .item-title{ font-size:14.5px; color:var(--text); line-height:1.35; }
+  .item-title.done{ color:var(--text-faint); text-decoration:line-through; }
+  .item-meta{ display:flex; gap:8px; align-items:center; margin-top:3px; }
+  .item-time{ font-family:'IBM Plex Mono', monospace; font-size:11.5px; color:var(--text-dim); }
+  .item-proj{ font-size:11px; color:var(--text-dim); display:flex; align-items:center; gap:4px; }
+  .item-proj .dot{ width:5px; height:5px; border-radius:50%; }
+  .empty-note{ color:var(--text-faint); font-size:13.5px; padding:16px 0; font-style:italic; }
+
+  /* week strip */
+  .week-strip{ display:flex; justify-content:space-between; margin-top:4px; }
+  .week-day{
+    flex:1; display:flex; flex-direction:column; align-items:center; gap:6px;
+    padding:8px 2px; border-radius:var(--radius-m); cursor:pointer;
+  }
+  .week-day .wd-label{ font-size:10.5px; color:var(--text-faint); font-family:'IBM Plex Mono',monospace; }
+  .week-day .wd-num{ font-size:14px; color:var(--text-dim); font-weight:500; }
+  .week-day.today .wd-num{ color:var(--bg); background:var(--gold); width:26px; height:26px; border-radius:50%; display:flex; align-items:center; justify-content:center; }
+  .week-day .wd-dot{ width:4px; height:4px; border-radius:50%; background:var(--indigo); margin-top:1px; visibility:hidden; }
+  .week-day.has-items .wd-dot{ visibility:visible; }
+
+  /* project list */
+  .proj-row{
+    display:flex; align-items:center; gap:12px; padding:14px 4px 14px 14px;
+    background:var(--bg-panel); border-radius:var(--radius-m); margin-bottom:8px;
+    border-left:3px solid var(--proj-color, var(--gold));
+    cursor:pointer;
+  }
+  .proj-name{ font-size:14.5px; font-weight:500; color:var(--text); }
+  .proj-sub{ font-size:11.5px; color:var(--text-faint); margin-top:2px; }
+  .proj-count{ font-family:'IBM Plex Mono',monospace; font-size:13px; color:var(--text-dim); margin-left:auto; padding-right:10px; }
+  .proj-count.zero{ color:var(--text-faint); }
+
+  /* project detail */
+  #projectDetail{ display:none; }
+  #projectDetail.active{ display:block; }
+  .detail-header{ display:flex; align-items:center; gap:10px; margin-bottom:4px; }
+  .back-btn{ color:var(--text-dim); font-size:13px; cursor:pointer; display:flex; align-items:center; gap:4px; }
+  .detail-title{ font-family:'Fraunces',serif; font-size:26px; font-weight:560; margin:10px 0 2px; }
+  textarea.notes{
+    width:100%; background:var(--bg-panel); border:1px solid var(--border);
+    border-radius:var(--radius-m); color:var(--text); font-family:'IBM Plex Sans',sans-serif;
+    font-size:13.5px; padding:12px; resize:vertical; min-height:64px; margin-top:8px;
+  }
+  textarea.notes:focus, input:focus, select:focus{ outline:none; border-color:var(--gold); }
+
+  /* calendar */
+  .cal-nav{ display:flex; align-items:center; justify-content:space-between; margin:8px 0 14px; }
+  .cal-nav .cal-title{ font-family:'Fraunces',serif; font-size:20px; font-weight:560; }
+  .cal-nav button{ background:var(--bg-panel); border:1px solid var(--border); color:var(--text); width:32px; height:32px; border-radius:50%; cursor:pointer; font-size:15px; }
+  .cal-grid{ display:grid; grid-template-columns:repeat(7,1fr); gap:4px; }
+  .cal-dow{ text-align:center; font-size:10.5px; color:var(--text-faint); font-family:'IBM Plex Mono',monospace; padding-bottom:6px; }
+  .cal-cell{
+    aspect-ratio:1; display:flex; flex-direction:column; align-items:center; justify-content:center;
+    border-radius:var(--radius-s); cursor:pointer; position:relative; color:var(--text-dim); font-size:13px;
+  }
+  .cal-cell.outside{ color:var(--text-faint); opacity:0.35; }
+  .cal-cell.today{ background:var(--bg-elevated); color:var(--gold); font-weight:600; border:1px solid var(--gold-dim); }
+  .cal-cell.selected{ background:var(--indigo-dim); color:#fff; }
+  .cal-dots{ display:flex; gap:2px; margin-top:3px; }
+  .cal-dots span{ width:4px; height:4px; border-radius:50%; }
+  .agenda-day{ font-family:'IBM Plex Mono',monospace; font-size:12px; color:var(--text-dim); margin:22px 0 8px; }
+
+  /* fab + nav */
+  .fab{
+    position:fixed; bottom:calc(84px + env(safe-area-inset-bottom)); right:calc(50% - 260px + 20px);
+    width:52px; height:52px; border-radius:50%; background:var(--gold); color:var(--bg);
+    display:flex; align-items:center; justify-content:center; font-size:26px; border:none;
+    box-shadow:0 6px 18px rgba(201,164,76,0.28); cursor:pointer; z-index:20; font-weight:400;
+  }
+  @media (max-width:559px){ .fab{ right:20px; } }
+
+  nav.tabbar{
+    position:fixed; bottom:0; left:50%; transform:translateX(-50%);
+    width:100%; max-width:520px;
+    background:rgba(20,23,31,0.92); backdrop-filter:blur(14px);
+    border-top:1px solid var(--border-soft);
+    display:flex; padding:10px 12px calc(10px + env(safe-area-inset-bottom));
+    z-index:15;
+  }
+  .tab{
+    flex:1; display:flex; flex-direction:column; align-items:center; gap:4px;
+    color:var(--text-faint); cursor:pointer; font-size:10.5px; font-family:'IBM Plex Mono',monospace;
+  }
+  .tab.active{ color:var(--gold); }
+  .tab svg{ width:20px; height:20px; }
+
+  /* modal */
+  .overlay{
+    position:fixed; inset:0; background:rgba(6,7,10,0.6); backdrop-filter:blur(2px);
+    display:none; align-items:flex-end; justify-content:center; z-index:30;
+  }
+  .overlay.active{ display:flex; }
+  .sheet{
+    background:var(--bg-elevated); width:100%; max-width:520px; border-radius:20px 20px 0 0;
+    padding:22px 20px calc(24px + env(safe-area-inset-bottom)); border:1px solid var(--border);
+    animation:slideUp .22s cubic-bezier(.2,.8,.2,1);
+  }
+  @keyframes slideUp{ from{ transform:translateY(30px); opacity:0;} to{ transform:translateY(0); opacity:1;} }
+  .sheet h3{ font-family:'Fraunces',serif; font-weight:560; font-size:20px; margin:0 0 16px; }
+  .field{ margin-bottom:13px; }
+  .field label{ display:block; font-size:11.5px; color:var(--text-dim); margin-bottom:6px; font-family:'IBM Plex Mono',monospace; }
+  .field input, .field select{
+    width:100%; background:var(--bg-panel); border:1px solid var(--border); color:var(--text);
+    padding:11px 12px; border-radius:var(--radius-s); font-size:14.5px; font-family:'IBM Plex Sans',sans-serif;
+  }
+  .type-toggle{ display:flex; gap:8px; margin-bottom:16px; }
+  .type-toggle button{
+    flex:1; padding:9px; border-radius:var(--radius-s); border:1px solid var(--border); background:var(--bg-panel);
+    color:var(--text-dim); font-size:13px; cursor:pointer;
+  }
+  .type-toggle button.active{ background:var(--indigo-dim); color:#fff; border-color:var(--indigo); }
+  .row-2{ display:flex; gap:10px; }
+  .row-2 .field{ flex:1; }
+  .sheet-actions{ display:flex; gap:10px; margin-top:18px; }
+  .btn{ flex:1; padding:13px; border-radius:var(--radius-s); border:none; font-size:14px; font-weight:500; cursor:pointer; }
+  .btn-primary{ background:var(--gold); color:var(--bg); }
+  .btn-ghost{ background:transparent; color:var(--text-dim); border:1px solid var(--border); }
+  .btn-danger{ background:transparent; color:var(--red); border:1px solid rgba(224,101,75,0.3); }
+
+  /* settings */
+  .settings-block{ background:var(--bg-panel); border:1px solid var(--border-soft); border-radius:var(--radius-m); padding:16px; margin-bottom:14px; }
+  .settings-block h4{ margin:0 0 6px; font-size:13.5px; font-weight:600; }
+  .settings-block p{ margin:0 0 12px; font-size:12.5px; color:var(--text-dim); line-height:1.5; }
+  .settings-block .btn{ width:100%; }
+  input[type=file]{ display:none; }
+</style>
+</head>
+<body>
+<div id="app">
+
+  <header>
+    <div class="date-block">
+      <div>
+        <div class="greet" id="greetLine">—</div>
+        <div class="date-num display" id="dateNum">09</div>
+      </div>
+      <div class="date-meta">
+        <div class="date-weekday" id="dateWeekday">Tuesday</div>
+        <div class="date-sub mono" id="dateSub">SEP 2026 · WK 37</div>
+      </div>
+    </div>
+  </header>
+
+  <div class="chip-row" id="chipRow"></div>
+
+  <main>
+    <!-- TODAY VIEW -->
+    <section class="view active" id="view-today">
+      <div class="section-label">TODAY <a id="addTodayLink">+ add</a></div>
+      <div id="todayList"></div>
+
+      <div class="section-label">THIS WEEK <a id="goCalendar">calendar ›</a></div>
+      <div class="week-strip" id="weekStrip"></div>
+
+      <div class="section-label">PROJECTS</div>
+      <div id="projectListToday"></div>
+    </section>
+
+    <!-- CALENDAR VIEW -->
+    <section class="view" id="view-calendar">
+      <div class="cal-nav">
+        <button id="calPrev">‹</button>
+        <div class="cal-title display" id="calTitle">September 2026</div>
+        <button id="calNext">›</button>
+      </div>
+      <div class="cal-grid" id="calGrid"></div>
+      <div id="agendaWrap"></div>
+    </section>
+
+    <!-- PROJECTS VIEW -->
+    <section class="view" id="view-projects">
+      <div class="section-label">ALL PROJECTS <a id="addProjectLink">+ new</a></div>
+      <div id="projectListFull"></div>
+
+      <div id="projectDetail">
+        <div class="detail-header">
+          <span class="back-btn" id="backToProjects">‹ projects</span>
+        </div>
+        <div class="detail-title display" id="detailTitle"></div>
+        <textarea class="notes" id="detailNotes" placeholder="Notes…"></textarea>
+        <div class="section-label">OPEN <a id="detailAddLink">+ add</a></div>
+        <div id="detailOpenList"></div>
+        <div class="section-label">DONE</div>
+        <div id="detailDoneList"></div>
+      </div>
+    </section>
+
+    <!-- SETTINGS VIEW -->
+    <section class="view" id="view-settings">
+      <div class="section-label">DATA</div>
+      <div class="settings-block">
+        <h4>Everything stays on this device</h4>
+        <p>This console has no server. Tasks, events and notes are saved in this browser's local storage only — nothing syncs automatically between your phone and computer. Use export / import below to move a backup between devices.</p>
+        <button class="btn btn-ghost" id="exportBtn">Export backup (.json)</button>
+      </div>
+      <div class="settings-block">
+        <h4>Restore a backup</h4>
+        <p>Import a previously exported file. This replaces everything currently in the console.</p>
+        <label class="btn btn-ghost" for="importFile" style="display:block; text-align:center;">Import backup</label>
+        <input type="file" id="importFile" accept="application/json">
+      </div>
+      <div class="settings-block">
+        <h4>Add to your home screen</h4>
+        <p><b>iPhone:</b> open this file in Safari → Share → Add to Home Screen.<br><br><b>Android / computer:</b> host the folder (e.g. Netlify Drop or GitHub Pages) and Chrome will offer Install app automatically.</p>
+      </div>
+      <div class="settings-block">
+        <h4>Reset</h4>
+        <p>Wipes all projects, tasks and events on this device. Can't be undone.</p>
+        <button class="btn btn-danger" id="resetBtn">Erase everything</button>
+      </div>
+    </section>
+  </main>
+
+  <button class="fab" id="fabAdd">+</button>
+
+  <nav class="tabbar">
+    <div class="tab active" data-view="today"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>Today</div>
+    <div class="tab" data-view="calendar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>Calendar</div>
+    <div class="tab" data-view="projects"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="4" width="7" height="7" rx="1.5"/><rect x="14" y="4" width="7" height="7" rx="1.5"/><rect x="3" y="15" width="7" height="6" rx="1.5"/><rect x="14" y="15" width="7" height="6" rx="1.5"/></svg>Projects</div>
+    <div class="tab" data-view="settings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 00.34 1.87l.06.06a2 2 0 11-2.83 2.83l-.06-.06a1.7 1.7 0 00-1.87-.34 1.7 1.7 0 00-1 1.55V21a2 2 0 01-4 0v-.09a1.7 1.7 0 00-1-1.55 1.7 1.7 0 00-1.87.34l-.06.06a2 2 0 11-2.83-2.83l.06-.06A1.7 1.7 0 004.6 15a1.7 1.7 0 00-1.55-1H3a2 2 0 010-4h.09A1.7 1.7 0 004.6 9a1.7 1.7 0 00-.34-1.87l-.06-.06a2 2 0 112.83-2.83l.06.06A1.7 1.7 0 009 4.6a1.7 1.7 0 001-1.55V3a2 2 0 014 0v.09a1.7 1.7 0 001 1.55 1.7 1.7 0 001.87-.34l.06-.06a2 2 0 112.83 2.83l-.06.06A1.7 1.7 0 0019.4 9a1.7 1.7 0 001.55 1H21a2 2 0 010 4h-.09a1.7 1.7 0 00-1.55 1z"/></svg>Settings</div>
+  </nav>
+</div>
+
+<!-- ADD ITEM SHEET -->
+<div class="overlay" id="addOverlay">
+  <div class="sheet">
+    <h3 id="sheetTitle">New</h3>
+    <div class="type-toggle">
+      <button id="typeTask" class="active">Task</button>
+      <button id="typeEvent">Event</button>
+    </div>
+    <div class="field">
+      <label>Title</label>
+      <input type="text" id="itemTitle" placeholder="What is it?">
+    </div>
+    <div class="field">
+      <label>Project</label>
+      <select id="itemProject"></select>
+    </div>
+    <div class="row-2">
+      <div class="field">
+        <label>Date</label>
+        <input type="date" id="itemDate">
+      </div>
+      <div class="field" id="timeField">
+        <label>Time</label>
+        <input type="time" id="itemTime">
+      </div>
+    </div>
+    <div class="sheet-actions">
+      <button class="btn btn-ghost" id="cancelAdd">Cancel</button>
+      <button class="btn btn-primary" id="saveAdd">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- ADD PROJECT SHEET -->
+<div class="overlay" id="projOverlay">
+  <div class="sheet">
+    <h3>New project</h3>
+    <div class="field">
+      <label>Name</label>
+      <input type="text" id="projName" placeholder="e.g. New venture">
+    </div>
+    <div class="field">
+      <label>Color</label>
+      <select id="projColor">
+        <option value="#C9A44C">Gold</option>
+        <option value="#6C6FF0">Indigo</option>
+        <option value="#6FA87A">Sage</option>
+        <option value="#E0654B">Terracotta</option>
+        <option value="#7FA8C9">Sky</option>
+        <option value="#B37FC9">Violet</option>
+      </select>
+    </div>
+    <div class="sheet-actions">
+      <button class="btn btn-ghost" id="cancelProj">Cancel</button>
+      <button class="btn btn-primary" id="saveProj">Create</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  'use strict';
+
+  /* ---------------- State ---------------- */
+  var STORAGE_KEY = 'nyxus_console_v1';
+  var todayStr = fmtDate(new Date());
+
+  var defaultState = {
+    projects: [
+      { id:'p_2gather',   name:'2gather Brazil', color:'#6C6FF0', notes:'Country lead — partnerships, marketing content, market development.' },
+      { id:'p_stickface',  name:'StickFace',      color:'#C9A44C', notes:'Unity mobile game with Maurice. Targeting Google Play.' },
+      { id:'p_seliq',      name:'Seliq',          color:'#6FA87A', notes:'Outreach for the pre-interview screening product. Commission per call booked / sale closed.' },
+      { id:'p_thesis',     name:'TCC Thesis',     color:'#E0654B', notes:'Brand authenticity across consumer cultures. Priority: lock a supervisor.' },
+      { id:'p_fgv',        name:'FGV Classes',    color:'#7FA8C9', notes:'' }
+    ],
+    tasks: [
+      { id:uid(), projectId:'p_thesis',    title:'Follow up with professors re: supervision', done:false, date:todayStr, time:'' },
+      { id:uid(), projectId:'p_stickface', title:'Ping Maurice about the repo push',            done:false, date:'',       time:'' },
+      { id:uid(), projectId:'p_2gather',   title:'Draft next Instagram ad batch',               done:false, date:todayStr, time:'' },
+      { id:uid(), projectId:'p_seliq',     title:'Book two prospect calls',                     done:false, date:'',       time:'' }
+    ],
+    events: [
+      { id:uid(), projectId:'p_fgv', title:'Valuing Companies — class', date:todayStr, time:'14:00' }
+    ]
+  };
+
+  var state = load();
+  var activeProjectFilter = 'all';
+  var calCursor = new Date();
+  var selectedDay = todayStr;
+  var currentDetailProject = null;
+  var addType = 'task';
+
+  function uid(){ return 'id_' + Math.random().toString(36).slice(2,10) + Date.now().toString(36).slice(-4); }
+
+  function load(){
+    try{
+      var raw = localStorage.getItem(STORAGE_KEY);
+      if(raw){ return JSON.parse(raw); }
+    }catch(e){}
+    return JSON.parse(JSON.stringify(defaultState));
+  }
+  function save(){
+    try{ localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }catch(e){}
+  }
+
+  function fmtDate(d){
+    var y=d.getFullYear(), m=String(d.getMonth()+1).padStart(2,'0'), day=String(d.getDate()).padStart(2,'0');
+    return y+'-'+m+'-'+day;
+  }
+  function projById(id){ return state.projects.find(function(p){return p.id===id;}); }
+  function weekNum(d){
+    var onejan = new Date(d.getFullYear(),0,1);
+    return Math.ceil((((d - onejan) / 86400000) + onejan.getDay()+1)/7);
+  }
+
+  /* ---------------- Header ---------------- */
+  function renderHeader(){
+    var now = new Date();
+    var hr = now.getHours();
+    var greet = hr<12 ? 'Good morning' : hr<18 ? 'Good afternoon' : 'Good evening';
+    document.getElementById('greetLine').textContent = greet;
+    document.getElementById('dateNum').textContent = String(now.getDate()).padStart(2,'0');
+    document.getElementById('dateWeekday').textContent = now.toLocaleDateString('en-US',{weekday:'long'});
+    document.getElementById('dateSub').textContent =
+      now.toLocaleDateString('en-US',{month:'short'}).toUpperCase() + ' ' + now.getFullYear() + ' · WK ' + weekNum(now);
+  }
+
+  /* ---------------- Chips ---------------- */
+  function renderChips(){
+    var row = document.getElementById('chipRow');
+    row.innerHTML = '';
+    var all = document.createElement('div');
+    all.className = 'chip' + (activeProjectFilter==='all' ? ' active' : '');
+    all.textContent = 'All';
+    all.onclick = function(){ activeProjectFilter='all'; renderAll(); };
+    row.appendChild(all);
+
+    state.projects.forEach(function(p){
+      var c = document.createElement('div');
+      c.className = 'chip' + (activeProjectFilter===p.id ? ' active' : '');
+      c.style.setProperty('--chip-color', p.color);
+      c.innerHTML = '<span class="dot" style="background:'+p.color+'"></span>' + escapeHtml(p.name);
+      c.onclick = function(){ activeProjectFilter = p.id; renderAll(); };
+      row.appendChild(c);
+    });
+
+    var add = document.createElement('div');
+    add.className = 'chip add';
+    add.textContent = '+';
+    add.onclick = openProjectSheet;
+    row.appendChild(add);
+  }
+
+  /* ---------------- Today view ---------------- */
+  function allItemsForDate(dateStr, filterProject){
+    var items = [];
+    state.tasks.forEach(function(t){
+      if(t.date===dateStr && (filterProject==='all'||t.projectId===filterProject)) items.push(Object.assign({_type:'task'},t));
+    });
+    state.events.forEach(function(e){
+      if(e.date===dateStr && (filterProject==='all'||e.projectId===filterProject)) items.push(Object.assign({_type:'event'},e));
+    });
+    items.sort(function(a,b){
+      if(!a.time && !b.time) return 0;
+      if(!a.time) return 1;
+      if(!b.time) return -1;
+      return a.time.localeCompare(b.time);
+    });
+    return items;
+  }
+
+  function itemRowHtml(item){
+    var proj = projById(item.projectId);
+    var color = proj ? proj.color : '#666';
+    var checkClasses = 'check' + (item._type==='event' ? ' event' : '') + (item.done ? ' done' : '');
+    var checkInner = item._type==='event'
+      ? '<svg viewBox="0 0 24 24" fill="none" stroke="'+color+'" stroke-width="2"><circle cx="12" cy="12" r="4" fill="'+color+'"/></svg>'
+      : '<svg viewBox="0 0 24 24" fill="none" stroke="#0B0D12" stroke-width="3"><path d="M4 12l5 5L20 6"/></svg>';
+    return '' +
+      '<div class="item-row" data-id="'+item.id+'" data-type="'+item._type+'">' +
+        '<div class="'+checkClasses+'" data-action="toggle">'+checkInner+'</div>' +
+        '<div class="item-body">' +
+          '<div class="item-title'+(item.done?' done':'')+'">'+escapeHtml(item.title)+'</div>' +
+          '<div class="item-meta">' +
+            (item.time ? '<span class="item-time">'+item.time+'</span>' : '') +
+            (proj ? '<span class="item-proj"><span class="dot" style="background:'+color+'"></span>'+escapeHtml(proj.name)+'</span>' : '') +
+          '</div>' +
+        '</div>' +
+      '</div>';
+  }
+
+  function bindItemRows(container){
+    container.querySelectorAll('.item-row').forEach(function(row){
+      var id = row.getAttribute('data-id');
+      var type = row.getAttribute('data-type');
+      row.querySelector('[data-action="toggle"]').onclick = function(ev){
+        ev.stopPropagation();
+        if(type==='task'){
+          var t = state.tasks.find(function(x){return x.id===id;});
+          if(t){ t.done = !t.done; save(); renderAll(); }
+        }
+      };
+    });
+  }
+
+  function renderToday(){
+    var list = allItemsForDate(todayStr, activeProjectFilter).filter(function(i){ return i._type==='event' || !i.done; });
+    var wrap = document.getElementById('todayList');
+    wrap.innerHTML = list.length ? list.map(itemRowHtml).join('') : '<div class="empty-note">Nothing on the books today.</div>';
+    bindItemRows(wrap);
+
+    // week strip
+    var strip = document.getElementById('weekStrip');
+    strip.innerHTML = '';
+    var base = new Date();
+    var monday = new Date(base);
+    monday.setDate(base.getDate() - ((base.getDay()+6)%7));
+    for(var i=0;i<7;i++){
+      var d = new Date(monday); d.setDate(monday.getDate()+i);
+      var ds = fmtDate(d);
+      var has = allItemsForDate(ds,'all').length>0;
+      var cell = document.createElement('div');
+      cell.className = 'week-day' + (ds===todayStr?' today':'') + (has?' has-items':'');
+      cell.innerHTML = '<span class="wd-label mono">'+d.toLocaleDateString('en-US',{weekday:'narrow'})+'</span><span class="wd-num">'+d.getDate()+'</span><span class="wd-dot"></span>';
+      cell.onclick = function(dd){ return function(){ selectedDay=dd; switchView('calendar'); renderCalendar(); }; }(ds);
+      strip.appendChild(cell);
+    }
+
+    // project summary
+    var pl = document.getElementById('projectListToday');
+    pl.innerHTML = state.projects.map(function(p){
+      var open = state.tasks.filter(function(t){return t.projectId===p.id && !t.done;}).length;
+      return '<div class="proj-row" style="--proj-color:'+p.color+'" data-pid="'+p.id+'">' +
+        '<div><div class="proj-name">'+escapeHtml(p.name)+'</div></div>' +
+        '<div class="proj-count'+(open===0?' zero':'')+'">'+(open||'—')+'</div>' +
+      '</div>';
+    }).join('');
+    pl.querySelectorAll('.proj-row').forEach(function(row){
+      row.onclick = function(){ openProjectDetail(row.getAttribute('data-pid')); switchView('projects'); };
+    });
+  }
+
+  /* ---------------- Calendar view ---------------- */
+  function renderCalendar(){
+    document.getElementById('calTitle').textContent = calCursor.toLocaleDateString('en-US',{month:'long', year:'numeric'});
+    var grid = document.getElementById('calGrid');
+    grid.innerHTML = '';
+    ['M','T','W','T','F','S','S'].forEach(function(d){
+      var el = document.createElement('div'); el.className='cal-dow'; el.textContent=d; grid.appendChild(el);
+    });
+    var year = calCursor.getFullYear(), month = calCursor.getMonth();
+    var firstOfMonth = new Date(year, month, 1);
+    var startOffset = (firstOfMonth.getDay()+6)%7;
+    var startDate = new Date(firstOfMonth); startDate.setDate(1-startOffset);
+
+    for(var i=0;i<42;i++){
+      var d = new Date(startDate); d.setDate(startDate.getDate()+i);
+      var ds = fmtDate(d);
+      var outside = d.getMonth()!==month;
+      var items = allItemsForDate(ds,'all');
+      var cell = document.createElement('div');
+      cell.className = 'cal-cell' + (outside?' outside':'') + (ds===todayStr?' today':'') + (ds===selectedDay && !outside ? ' selected':'');
+      var dotsHtml = items.slice(0,3).map(function(it){
+        var proj = projById(it.projectId);
+        return '<span style="background:'+(proj?proj.color:'#666')+'"></span>';
+      }).join('');
+      cell.innerHTML = '<span>'+d.getDate()+'</span><div class="cal-dots">'+dotsHtml+'</div>';
+      cell.onclick = function(dd){ return function(){ selectedDay=dd; renderCalendar(); }; }(ds);
+      grid.appendChild(cell);
+      if(i>=34 && d.getDay()===0 && d.getMonth()!==month && i%7===6) { /* allow trailing row cut naturally */ }
+    }
+
+    var wrap = document.getElementById('agendaWrap');
+    var dayItems = allItemsForDate(selectedDay,'all');
+    var dLabel = new Date(selectedDay+'T00:00:00').toLocaleDateString('en-US',{weekday:'long', month:'long', day:'numeric'});
+    wrap.innerHTML = '<div class="agenda-day">'+dLabel.toUpperCase()+'</div>' +
+      (dayItems.length ? dayItems.map(itemRowHtml).join('') : '<div class="empty-note">Nothing scheduled.</div>');
+    bindItemRows(wrap);
+  }
+
+  /* ---------------- Projects view ---------------- */
+  function renderProjectsList(){
+    var wrap = document.getElementById('projectListFull');
+    wrap.innerHTML = state.projects.map(function(p){
+      var open = state.tasks.filter(function(t){return t.projectId===p.id && !t.done;}).length;
+      return '<div class="proj-row" style="--proj-color:'+p.color+'" data-pid="'+p.id+'">' +
+        '<div><div class="proj-name">'+escapeHtml(p.name)+'</div>'+(p.notes?'<div class="proj-sub">'+escapeHtml(p.notes.slice(0,46))+(p.notes.length>46?'…':'')+'</div>':'')+'</div>' +
+        '<div class="proj-count'+(open===0?' zero':'')+'">'+(open||'—')+'</div>' +
+      '</div>';
+    }).join('');
+    wrap.querySelectorAll('.proj-row').forEach(function(row){
+      row.onclick = function(){ openProjectDetail(row.getAttribute('data-pid')); };
+    });
+  }
+
+  function openProjectDetail(pid){
+    currentDetailProject = pid;
+    var p = projById(pid);
+    if(!p) return;
+    document.getElementById('projectListFull').style.display='none';
+    document.querySelector('#view-projects .section-label').style.display='none';
+    document.getElementById('projectDetail').classList.add('active');
+    document.getElementById('detailTitle').textContent = p.name;
+    var notesEl = document.getElementById('detailNotes');
+    notesEl.value = p.notes || '';
+    notesEl.oninput = function(){ p.notes = notesEl.value; save(); };
+
+    renderDetailTasks();
+  }
+  function closeProjectDetail(){
+    currentDetailProject = null;
+    document.getElementById('projectListFull').style.display='';
+    document.querySelector('#view-projects .section-label').style.display='';
+    document.getElementById('projectDetail').classList.remove('active');
+    renderProjectsList();
+  }
+  function renderDetailTasks(){
+    var p = projById(currentDetailProject);
+    if(!p) return;
+    var tasks = state.tasks.filter(function(t){return t.projectId===p.id;});
+    var open = tasks.filter(function(t){return !t.done;});
+    var done = tasks.filter(function(t){return t.done;});
+    var openEl = document.getElementById('detailOpenList');
+    var doneEl = document.getElementById('detailDoneList');
+    openEl.innerHTML = open.length ? open.map(function(t){return itemRowHtml(Object.assign({_type:'task'},t));}).join('') : '<div class="empty-note">Nothing open.</div>';
+    doneEl.innerHTML = done.length ? done.map(function(t){return itemRowHtml(Object.assign({_type:'task'},t));}).join('') : '<div class="empty-note">Nothing finished yet.</div>';
+    bindItemRows(openEl); bindItemRows(doneEl);
+  }
+
+  /* ---------------- Add sheet ---------------- */
+  function populateProjectSelect(){
+    var sel = document.getElementById('itemProject');
+    sel.innerHTML = state.projects.map(function(p){ return '<option value="'+p.id+'">'+escapeHtml(p.name)+'</option>'; }).join('');
+    if(currentDetailProject) sel.value = currentDetailProject;
+  }
+
+  function openAddSheet(prefType){
+    addType = prefType || 'task';
+    updateTypeToggle();
+    populateProjectSelect();
+    document.getElementById('itemTitle').value = '';
+    document.getElementById('itemDate').value = (document.querySelector('#view-calendar.active')) ? selectedDay : todayStr;
+    document.getElementById('itemTime').value = '';
+    document.getElementById('addOverlay').classList.add('active');
+    setTimeout(function(){ document.getElementById('itemTitle').focus(); }, 150);
+  }
+  function updateTypeToggle(){
+    document.getElementById('typeTask').classList.toggle('active', addType==='task');
+    document.getElementById('typeEvent').classList.toggle('active', addType==='event');
+    document.getElementById('sheetTitle').textContent = addType==='task' ? 'New task' : 'New event';
+  }
+  function closeAddSheet(){ document.getElementById('addOverlay').classList.remove('active'); }
+
+  function saveAddItem(){
+    var title = document.getElementById('itemTitle').value.trim();
+    if(!title) return;
+    var pid = document.getElementById('itemProject').value;
+    var date = document.getElementById('itemDate').value;
+    var time = document.getElementById('itemTime').value;
+    if(addType==='task'){
+      state.tasks.push({ id:uid(), projectId:pid, title:title, done:false, date:date, time:time });
+    }else{
+      state.events.push({ id:uid(), projectId:pid, title:title, date:date||todayStr, time:time });
+    }
+    save();
+    closeAddSheet();
+    renderAll();
+  }
+
+  /* ---------------- Add project sheet ---------------- */
+  function openProjectSheet(){
+    document.getElementById('projName').value='';
+    document.getElementById('projOverlay').classList.add('active');
+  }
+  function closeProjectSheet(){ document.getElementById('projOverlay').classList.remove('active'); }
+  function saveProject(){
+    var name = document.getElementById('projName').value.trim();
+    if(!name) return;
+    var color = document.getElementById('projColor').value;
+    state.projects.push({ id:uid(), name:name, color:color, notes:'' });
+    save();
+    closeProjectSheet();
+    renderAll();
+  }
+
+  /* ---------------- Views / nav ---------------- */
+  function switchView(name){
+    document.querySelectorAll('.view').forEach(function(v){ v.classList.remove('active'); });
+    document.getElementById('view-'+name).classList.add('active');
+    document.querySelectorAll('.tab').forEach(function(t){ t.classList.toggle('active', t.getAttribute('data-view')===name); });
+    if(name==='projects') closeProjectDetail();
+    if(name==='calendar') renderCalendar();
+  }
+
+  function renderAll(){
+    renderHeader();
+    renderChips();
+    renderToday();
+    renderProjectsList();
+    if(currentDetailProject) renderDetailTasks();
+  }
+
+  function escapeHtml(s){
+    return String(s).replace(/[&<>"']/g, function(c){
+      return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];
+    });
+  }
+
+  /* ---------------- Export / Import / Reset ---------------- */
+  function exportData(){
+    var blob = new Blob([JSON.stringify(state,null,2)], {type:'application/json'});
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'console-backup-'+todayStr+'.json';
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  }
+  function importData(file){
+    var reader = new FileReader();
+    reader.onload = function(){
+      try{
+        var parsed = JSON.parse(reader.result);
+        if(parsed && parsed.projects && parsed.tasks && parsed.events){
+          state = parsed; save(); renderAll();
+        }
+      }catch(e){ alert('That file could not be read.'); }
+    };
+    reader.readAsText(file);
+  }
+  function resetAll(){
+    if(!confirm('Erase everything on this device? This cannot be undone.')) return;
+    state = JSON.parse(JSON.stringify(defaultState));
+    save(); renderAll();
+  }
+
+  /* ---------------- Wire up ---------------- */
+  document.querySelectorAll('.tab').forEach(function(t){
+    t.onclick = function(){ switchView(t.getAttribute('data-view')); };
+  });
+  document.getElementById('goCalendar').onclick = function(){ switchView('calendar'); };
+  document.getElementById('addTodayLink').onclick = function(){ openAddSheet('task'); };
+  document.getElementById('detailAddLink').onclick = function(){ openAddSheet('task'); };
+  document.getElementById('addProjectLink').onclick = openProjectSheet;
+  document.getElementById('fabAdd').onclick = function(){ openAddSheet('task'); };
+  document.getElementById('backToProjects').onclick = closeProjectDetail;
+
+  document.getElementById('typeTask').onclick = function(){ addType='task'; updateTypeToggle(); };
+  document.getElementById('typeEvent').onclick = function(){ addType='event'; updateTypeToggle(); };
+  document.getElementById('cancelAdd').onclick = closeAddSheet;
+  document.getElementById('saveAdd').onclick = saveAddItem;
+  document.getElementById('addOverlay').onclick = function(e){ if(e.target.id==='addOverlay') closeAddSheet(); };
+
+  document.getElementById('cancelProj').onclick = closeProjectSheet;
+  document.getElementById('saveProj').onclick = saveProject;
+  document.getElementById('projOverlay').onclick = function(e){ if(e.target.id==='projOverlay') closeProjectSheet(); };
+
+  document.getElementById('calPrev').onclick = function(){ calCursor.setMonth(calCursor.getMonth()-1); renderCalendar(); };
+  document.getElementById('calNext').onclick = function(){ calCursor.setMonth(calCursor.getMonth()+1); renderCalendar(); };
+
+  document.getElementById('exportBtn').onclick = exportData;
+  document.getElementById('importFile').onchange = function(e){ if(e.target.files[0]) importData(e.target.files[0]); };
+  document.getElementById('resetBtn').onclick = resetAll;
+
+  if('serviceWorker' in navigator){
+    window.addEventListener('load', function(){
+      navigator.serviceWorker.register('sw.js').catch(function(){});
+    });
+  }
+
+  renderAll();
+})();
+</script>
+</body>
+</html>
